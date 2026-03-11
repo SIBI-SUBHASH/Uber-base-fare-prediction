@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import matplotlib.pyplot as plt
 
 # -----------------------------------
 # Page Config
@@ -16,7 +17,12 @@ st.write("Predict the estimated fare of an Uber ride using Machine Learning.")
 # -----------------------------------
 @st.cache_resource
 def load_model():
-    return joblib.load("uber_fare_model.pkl")
+    try:
+        model = joblib.load("uber_fare_model.pkl")
+        return model
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
 
 model = load_model()
 
@@ -32,12 +38,12 @@ pickup_latitude = st.number_input("Pickup Latitude", value=40.748817)
 dropoff_longitude = st.number_input("Dropoff Longitude", value=-73.985428)
 dropoff_latitude = st.number_input("Dropoff Latitude", value=40.748817)
 
-passenger_count = st.slider("Passenger Count",1,6,1)
+passenger_count = st.slider("Passenger Count", 1, 6, 1)
 
-hour = st.slider("Hour of Day",0,23,12)
-day = st.slider("Day of Month",1,31,15)
-month = st.slider("Month",1,12,6)
-weekday = st.slider("Weekday (0=Mon)",0,6,3)
+hour = st.slider("Hour of Day", 0, 23, 12)
+day = st.slider("Day of Month", 1, 31, 15)
+month = st.slider("Month", 1, 12, 6)
+weekday = st.slider("Weekday (0=Mon)", 0, 6, 3)
 
 # -----------------------------------
 # Calculate Distance (Haversine)
@@ -47,7 +53,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
     R = 6371
 
-    lat1,lon1,lat2,lon2 = map(np.radians,[lat1,lon1,lat2,lon2])
+    lat1, lon1, lat2, lon2 = map(np.radians,[lat1,lon1,lat2,lon2])
 
     dlat = lat2 - lat1
     dlon = lon2 - lon1
@@ -57,6 +63,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
     return R*c
 
+
 distance = haversine(
     pickup_latitude,
     pickup_longitude,
@@ -64,7 +71,10 @@ distance = haversine(
     dropoff_longitude
 )
 
-st.write(f"Estimated Distance: **{distance:.2f} km**")
+# safety check
+distance = max(distance, 0)
+
+st.write(f"📍 Estimated Distance: **{distance:.2f} km**")
 
 # -----------------------------------
 # Prediction
@@ -72,31 +82,74 @@ st.write(f"Estimated Distance: **{distance:.2f} km**")
 
 if st.button("Predict Fare"):
 
-    input_data = pd.DataFrame([[
-        pickup_longitude,
-        pickup_latitude,
-        dropoff_longitude,
-        dropoff_latitude,
-        passenger_count,
-        hour,
-        day,
-        month,
-        weekday,
-        distance
-    ]],
-    columns=[
-        "pickup_longitude",
-        "pickup_latitude",
-        "dropoff_longitude",
-        "dropoff_latitude",
-        "passenger_count",
-        "hour",
-        "day",
-        "month",
-        "weekday",
-        "distance_km"
-    ])
+    if model is None:
+        st.error("Model not loaded properly.")
+    else:
 
-    prediction = model.predict(input_data)
+        input_data = pd.DataFrame([[
 
-    st.success(f"💰 Estimated Uber Fare: ${prediction[0]:.2f}")
+            pickup_longitude,
+            pickup_latitude,
+            dropoff_longitude,
+            dropoff_latitude,
+            passenger_count,
+            hour,
+            day,
+            month,
+            weekday,
+            distance
+
+        ]],
+
+        columns=[
+
+            "pickup_longitude",
+            "pickup_latitude",
+            "dropoff_longitude",
+            "dropoff_latitude",
+            "passenger_count",
+            "hour",
+            "day",
+            "month",
+            "weekday",
+            "distance_km"
+
+        ])
+
+        prediction = model.predict(input_data)[0]
+
+        st.success(f"💰 Estimated Uber Fare: **${prediction:.2f}**")
+
+
+# -----------------------------------
+# Feature Importance
+# -----------------------------------
+
+try:
+    if model is not None and hasattr(model, "feature_importances_"):
+
+        st.subheader("📊 Model Feature Importance")
+
+        features = [
+            "pickup_longitude",
+            "pickup_latitude",
+            "dropoff_longitude",
+            "dropoff_latitude",
+            "passenger_count",
+            "hour",
+            "day",
+            "month",
+            "weekday",
+            "distance_km"
+        ]
+
+        importance = model.feature_importances_
+
+        fig, ax = plt.subplots()
+        ax.barh(features, importance)
+        ax.set_title("Feature Importance")
+
+        st.pyplot(fig)
+
+except:
+    pass
