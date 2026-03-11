@@ -117,9 +117,9 @@ This feature plays a major role in predicting fare prices.
 
 📂 Project Structure
 Uber-Fare-Prediction
-  uber.csv
-  Uber_Fare_Prediction.ipynb
-  uber_fare_model.pkl
+  uber.csv->
+  Uber_Fare_Prediction.ipynb->
+  uber_fare_model.pkl->
   README.md
 
 🎯 Future Improvements
